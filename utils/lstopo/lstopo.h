@@ -59,6 +59,10 @@ struct lstopo_output {
   enum lstopo_orient_e force_orient[HWLOC_OBJ_TYPE_MAX]; /* orientation of children within an object of the given type */
   struct draw_methods *methods;
   unsigned min_pu_textwidth;
+  
+  /*drawing*/
+  int drawing;
+  
 };
 
 struct lstopo_obj_userdata {
