@@ -10,6 +10,7 @@
  * Pretty text output
  */
 
+
 #include <private/autogen/config.h>
 #include <private/private.h>
 #include <hwloc.h>

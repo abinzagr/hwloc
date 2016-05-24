@@ -6,6 +6,7 @@
  * See COPYING in top-level directory.
  */
 
+
 #include <private/autogen/config.h>
 #include <private/private.h>
 #include <hwloc.h>
