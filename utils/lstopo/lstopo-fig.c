@@ -25,6 +25,7 @@ fig_init(void *loutput_)
 {
   struct lstopo_output *loutput = loutput_;
   FILE *file = loutput->file;
+  loutput->drawing=1;
   fprintf(file, "#FIG 3.2  Produced by hwloc's lstopo\n");
   fprintf(file, "Landscape\n");
   fprintf(file, "Center\n");
@@ -75,6 +76,8 @@ fig_box(void *loutput_, int r, int g, int b, unsigned depth, unsigned x, unsigne
   y *= FIG_FACTOR;
   width *= FIG_FACTOR;
   height *= FIG_FACTOR;
+  if(!loutput->drawing)
+  return;
   fprintf(file, "2 2 0 1 0 %d %u -1 20 0.0 0 0 -1 0 0 5\n\t", rgb_to_fig(r, g, b), depth);
   fprintf(file, " %u %u", x, y);
   fprintf(file, " %u %u", x + width, y);
@@ -93,6 +96,8 @@ fig_line(void *loutput_, int r, int g, int b, unsigned depth, unsigned x1, unsig
   y1 *= FIG_FACTOR;
   x2 *= FIG_FACTOR;
   y2 *= FIG_FACTOR;
+  if(!loutput->drawing)
+  return;
   fprintf(file, "2 1 0 1 0 %d %u -1 -1 0.0 0 0 -1 0 0 2\n\t", rgb_to_fig(r, g, b), depth);
   fprintf(file, " %u %u", x1, y1);
   fprintf(file, " %u %u", x2, y2);
@@ -108,6 +113,8 @@ fig_text(void *loutput_, int r, int g, int b, int size, unsigned depth, unsigned
   int color = rgb_to_fig(r, g, b);
   x *= FIG_FACTOR;
   y *= FIG_FACTOR;
+  if(!loutput->drawing)
+  return;
   size = (size * 16) / 10;
   fprintf(file, "4 0 %d %u -1 0 %d 0.0 4 %d %u %u %u %s\\001\n", color, depth, size, size * 10, len * size * 10, x, y + size * 10, text);
 }
@@ -123,13 +130,12 @@ static struct draw_methods fig_draw_methods = {
 
 void
 output_fig (struct lstopo_output *loutput, const char *filename)
-{
+{ 
   FILE *output = open_output(filename, loutput->overwrite);
   if (!output) {
     fprintf(stderr, "Failed to open %s for writing (%s)\n", filename, strerror(errno));
     return;
   }
-
   loutput->file = output;
   loutput->methods = &fig_draw_methods;
 

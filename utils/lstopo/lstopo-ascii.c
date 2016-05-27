@@ -10,7 +10,6 @@
  * Pretty text output
  */
 
-
 #include <private/autogen/config.h>
 #include <private/private.h>
 #include <hwloc.h>
@@ -345,7 +344,7 @@ ascii_box(void *output, int r, int g, int b, unsigned depth __hwloc_attribute_un
   x2 = x1 + width - 1;
   y2 = y1 + height - 1;
 
-  if (!disp->loutput.drawing) {
+  if (!disp->loutput.drawing) { 
     if ((int)x1 >= disp->width)
       disp->width = x1+1;
     if ((int)x2 >= disp->width)
@@ -406,7 +405,7 @@ ascii_line(void *output, int r __hwloc_attribute_unused, int g __hwloc_attribute
     y2 = z;
   }
 
-  if (disp->loutput.drawing){
+  if (!disp->loutput.drawing){
     if ((int)x2 >= disp->width)
       disp->width = x2+1;
     if ((int)y2 >= disp->height)
