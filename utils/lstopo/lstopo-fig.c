@@ -76,8 +76,6 @@ fig_box(void *loutput_, int r, int g, int b, unsigned depth, unsigned x, unsigne
   y *= FIG_FACTOR;
   width *= FIG_FACTOR;
   height *= FIG_FACTOR;
-  if(!loutput->drawing)
-  return;
   fprintf(file, "2 2 0 1 0 %d %u -1 20 0.0 0 0 -1 0 0 5\n\t", rgb_to_fig(r, g, b), depth);
   fprintf(file, " %u %u", x, y);
   fprintf(file, " %u %u", x + width, y);
@@ -96,8 +94,6 @@ fig_line(void *loutput_, int r, int g, int b, unsigned depth, unsigned x1, unsig
   y1 *= FIG_FACTOR;
   x2 *= FIG_FACTOR;
   y2 *= FIG_FACTOR;
-  if(!loutput->drawing)
-  return;
   fprintf(file, "2 1 0 1 0 %d %u -1 -1 0.0 0 0 -1 0 0 2\n\t", rgb_to_fig(r, g, b), depth);
   fprintf(file, " %u %u", x1, y1);
   fprintf(file, " %u %u", x2, y2);
@@ -113,8 +109,6 @@ fig_text(void *loutput_, int r, int g, int b, int size, unsigned depth, unsigned
   int color = rgb_to_fig(r, g, b);
   x *= FIG_FACTOR;
   y *= FIG_FACTOR;
-  if(!loutput->drawing)
-  return;
   size = (size * 16) / 10;
   fprintf(file, "4 0 %d %u -1 0 %d 0.0 4 %d %u %u %u %s\\001\n", color, depth, size, size * 10, len * size * 10, x, y + size * 10, text);
 }

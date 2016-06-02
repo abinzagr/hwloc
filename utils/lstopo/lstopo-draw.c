@@ -106,7 +106,6 @@ unsigned get_textwidth(void *output, struct draw_methods *methods,
     loutput->methods->textsize(output, text, length, fontsize, &width);
     return width + gridsize;
   }
-  //printf("length: %u fontsize: %u gridsize: %u\n",length,fontsize,gridsize);
   return (length * fontsize * 3) / 4 + gridsize;
 }
 
@@ -406,7 +405,7 @@ RECURSE_BEGIN(obj, border) \
 
 /* Check whether we already computed the size and we are not actually drawing, in that case return it */
 #define DYNA_CHECK() do { \
-  if (!loutput->drawing) { \
+  if (loutput->drawing<=0) { \
     struct lstopo_obj_userdata *save = level->userdata; \
     if (save->fontsize == fontsize && save->gridsize == gridsize) { \
       *retwidth = save->width; \
@@ -414,7 +413,11 @@ RECURSE_BEGIN(obj, border) \
       return; \
     } \
   } \
-  if (loutput->drawing==1) { \
+} while (0)
+
+/*Check whether we already are actually drawing*/
+#define DYNA_RESTORE() do { \
+if (loutput->drawing==1) { \
     struct lstopo_obj_userdata *save = level->userdata; \
       *retwidth = save->width; \
       *retheight = save->height; \
@@ -657,6 +660,7 @@ pci_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwl
    
 
   DYNA_CHECK();
+  DYNA_RESTORE();
 
   if (fontsize) {
     char busid[32];
@@ -711,16 +715,19 @@ os_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwlo
   int logical = loutput->logical;
   unsigned gridsize = loutput->gridsize;
   unsigned fontsize = loutput->fontsize;
+  unsigned myheight, totheight;
+  unsigned mywidth, totwidth;
   unsigned textwidth = gridsize;
-  unsigned totheight = gridsize;
-  unsigned totwidth = gridsize;
-  struct style style;
   char text[64];
   int n;
+  struct style style;
   unsigned nmorelines = 0, i;
   char morelines[3][64];
+  
+  DYNA_CHECK();
+  DYNA_RESTORE(); 
 
-  if (fontsize) {
+ if (fontsize) {
     const char *coproctype = level->subtype;
 
     if (HWLOC_OBJ_OSDEV_COPROC == level->attr->osdev.type && coproctype) {
@@ -801,27 +808,37 @@ os_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwlo
 
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
+    
     for(i=0; i<nmorelines; i++) {
       unsigned nn = (unsigned)strlen(morelines[i]);
       unsigned ntextwidth = get_textwidth(loutput, methods, morelines[i], nn, fontsize, gridsize);
       if (ntextwidth > textwidth)
 	textwidth = ntextwidth;
     }
+    
+    mywidth = 0;
+    myheight = (fontsize + gridsize)*(nmorelines+1);
     totheight = gridsize + (fontsize + gridsize)*(nmorelines+1);
-    totwidth = gridsize + textwidth;
+    totwidth = gridsize + textwidth;    
+      }
+  
+  if(loutput->drawing<=0)
+  RECURSE_RECT(level, methods, gridsize, gridsize);
+  if(loutput->drawing!=0){
+	lstopo_set_object_color(methods, topology, level, 0, &style);
+	methods->box(loutput, style.bg.r, style.bg.g, style.bg.b, depth, x, totwidth, y, totheight);
+
+	if (fontsize) {
+		methods->text(loutput, style.t.r, style.t.g, style.t.b, fontsize, depth-1, x + gridsize, y + gridsize, text);
+        for(i=0; i<nmorelines; i++)
+        methods->text(loutput, style.t.r, style.t.g, style.t.b, fontsize, depth-1, x + gridsize, y + (i+2)*gridsize + (i+1)*fontsize, morelines[i]);
+	}
   }
+  if(loutput->drawing==1)
+  RECURSE_RECT(level, methods, gridsize, gridsize);
 
-  *retwidth = totwidth;
-  *retheight = totheight;
+  DYNA_SAVE();
 
-  lstopo_set_object_color(methods, topology, level, 0, &style);
-  methods->box(loutput, style.bg.r, style.bg.g, style.bg.b, depth, x, *retwidth, y, *retheight);
-
-  if (fontsize) {
-    methods->text(loutput, style.t.r, style.t.g, style.t.b, fontsize, depth-1, x + gridsize, y + gridsize, text);
-    for(i=0; i<nmorelines; i++)
-      methods->text(loutput, style.t.r, style.t.g, style.t.b, fontsize, depth-1, x + gridsize, y + (i+2)*gridsize + (i+1)*fontsize, morelines[i]);
-  }
 }
 
 static void
@@ -842,6 +859,7 @@ bridge_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_o
    
 
   DYNA_CHECK();
+  DYNA_RESTORE();
   if(loutput->drawing<=0)
   RECURSE_VERT(level, methods, gridsize, 0); 
   if(loutput->drawing!=0){
@@ -912,7 +930,7 @@ pu_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj_t
   int colorarg;
    
   DYNA_CHECK();
-  
+  DYNA_RESTORE();
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
@@ -964,7 +982,8 @@ cache_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_ob
   struct style style;
   
   DYNA_CHECK();
-
+  DYNA_RESTORE();
+  
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
@@ -1002,7 +1021,8 @@ core_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj
   struct style style;
    
   DYNA_CHECK();
-
+  DYNA_RESTORE();
+  
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
@@ -1039,6 +1059,7 @@ package_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_
   struct style style;
 
   DYNA_CHECK();
+  DYNA_RESTORE(); 
   
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
@@ -1083,7 +1104,8 @@ node_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj
 
   /* Check whether dynamic programming can save us time */
   DYNA_CHECK();
-
+  DYNA_RESTORE();
+  
     if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
@@ -1091,7 +1113,7 @@ node_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj
   }
 
   /* Compute the size needed by sublevels */
-  if(loutput->drawing<=0)//loutput->drawing=0;
+  if(loutput->drawing<=0)
   RECURSE_RECT(level, methods, gridsize, gridsize);
   
   if(loutput->drawing!=0){
@@ -1127,7 +1149,7 @@ machine_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_
   struct style style;
    
   DYNA_CHECK();
-
+  DYNA_RESTORE();
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
@@ -1204,6 +1226,7 @@ system_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_o
   int n;
   struct style style;
   DYNA_CHECK();
+  DYNA_RESTORE();
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
@@ -1249,7 +1272,7 @@ group_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_ob
   struct style style;
 
   DYNA_CHECK();
-  
+  DYNA_RESTORE();
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
@@ -1295,7 +1318,7 @@ misc_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj
   struct style style;
 
   DYNA_CHECK();
-
+  DYNA_RESTORE();
   if (fontsize) {
     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
     textwidth = get_textwidth(loutput, methods, text, n, fontsize, gridsize);
