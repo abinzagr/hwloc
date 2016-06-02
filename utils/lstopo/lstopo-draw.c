@@ -826,7 +826,7 @@ os_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwlo
   RECURSE_RECT(level, methods, gridsize, gridsize);
   if(loutput->drawing!=0){
 	lstopo_set_object_color(methods, topology, level, 0, &style);
-	methods->box(loutput, style.bg.r, style.bg.g, style.bg.b, depth, x, totwidth, y, totheight);
+	methods->box(loutput, style.bg.r, style.bg.g, style.bg.b, depth, x, *retwidth, y, *retheight);
 
 	if (fontsize) {
 		methods->text(loutput, style.t.r, style.t.g, style.t.b, fontsize, depth-1, x + gridsize, y + gridsize, text);
