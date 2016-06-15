@@ -268,6 +268,11 @@ lstopo_populate_userdata(hwloc_obj_t parent)
   save->common.next = parent->userdata;
   save->fontsize = (unsigned) -1;
   save->gridsize = (unsigned) -1;
+  save->x=(unsigned) -1;
+  save->y=(unsigned) -1;
+  save->xrel=(unsigned) -1;
+  save->yrel=(unsigned) -1;
+  save->bidule=0;
   parent->userdata = save;
 
   for(child = parent->first_child; child; child = child->next_sibling)

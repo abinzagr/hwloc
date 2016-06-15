@@ -74,6 +74,11 @@ struct lstopo_obj_userdata {
   unsigned height;
   unsigned fontsize;
   unsigned gridsize;
+  unsigned x;
+  unsigned y;
+  unsigned xrel;
+  unsigned yrel;
+  unsigned bidule;
 };
 
 typedef void output_method (struct lstopo_output *output, const char *filename);

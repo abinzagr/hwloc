@@ -191,6 +191,60 @@ again:
   return obj;
 }
 
+
+/*calculates the size/position (relative) of children objects and backups in their attributes */
+void place_children(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj_t obj,unsigned depth, unsigned separator,unsigned border,unsigned *retwidth,unsigned *retheight,unsigned textwidth){
+	hwloc_obj_t child;
+	unsigned numsubobjs = count_children(loutput,obj);
+	unsigned i;
+	unsigned width,height;
+	unsigned maxheight __hwloc_attribute_unused;
+	maxheight = 0;
+	unsigned xrel=0,yrel=0;
+	unsigned tmp=loutput->drawing;
+	unsigned fontsize = loutput->fontsize;
+	unsigned totwidth=border;
+	unsigned totheight= (fontsize ? fontsize + border : 0)+ border;
+	if (numsubobjs) {  
+	    for(i = 0, child = next_child(loutput, obj, NULL); child; i++, child = next_child(loutput, obj, child)){
+			loutput->drawing=0; 
+			get_type_fun(child->type)(loutput, methods, child, depth-1, xrel, &width, yrel, &height);
+			loutput->drawing=tmp;
+			/*Save computed relative coordinates */
+			((struct lstopo_obj_userdata*)(child->userdata))->xrel=xrel;
+			((struct lstopo_obj_userdata*)(child->userdata))->yrel=yrel;
+			/* Add the subobject's width and separator */
+			xrel += separator+width;
+			/* Update maximum height */ 
+            if (height > maxheight) 
+			maxheight = height;
+		}
+		totwidth=xrel;
+		/* Make sure there is width for the heading text */ 
+		/* Add subobjects height */ 
+		totheight += maxheight; 
+		/* And add border below */ 
+		totheight += border; 
+		/* Add border on the right */ 
+		totwidth += border; 	
+	}
+	if(totwidth<border + textwidth)
+		totwidth= border + textwidth;
+	/* Update returned values */ 
+   *retwidth = totwidth; 
+   *retheight = totheight;
+}
+
+/*draws objects using the saved attributes */
+void draw_children(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj_t obj,unsigned depth,unsigned gridsize,unsigned fontsize){
+	  hwloc_obj_t child; int i;
+	  unsigned width, height;
+	  unsigned numsubobjs = count_children(loutput, obj);
+	  for(i = 0, child = next_child(loutput, obj, NULL); child; i++, child = next_child(loutput, obj, child)){
+	  get_type_fun(child->type)(loutput, methods, child, depth-1, (((struct lstopo_obj_userdata*)(obj->userdata))->x+((struct lstopo_obj_userdata*)(child->userdata))->xrel+gridsize), &width, (((struct lstopo_obj_userdata*)(obj->userdata))->y+((struct lstopo_obj_userdata*)(child->userdata))->yrel+(2*gridsize+fontsize)), &height);
+  }
+	}
+	
 /*
  * Helper to recurse into sublevels, either horizontally or vertically
  * Updates caller's totwidth/myheight and maxwidth/maxheight
@@ -401,6 +455,8 @@ RECURSE_BEGIN(obj, border) \
     save->height = *retheight; \
     save->fontsize = fontsize; \
     save->gridsize = gridsize; \
+    save->x=x; \
+    save->y=y; \
 } while (0)
 
 /* Check whether we already computed the size and we are not actually drawing, in that case return it */
@@ -410,6 +466,8 @@ RECURSE_BEGIN(obj, border) \
     if (save->fontsize == fontsize && save->gridsize == gridsize) { \
       *retwidth = save->width; \
       *retheight = save->height; \
+      save->x=x; \
+      save->y=y; \
       return; \
     } \
   } \
@@ -422,7 +480,9 @@ if (loutput->drawing==1) { \
       *retwidth = save->width; \
       *retheight = save->height; \
       totwidth = *retwidth; \
-	  totheight = *retheight; \
+	  totheight = *retheight;\
+	  save->x=x; \
+      save->y=y; \
   } \
 } while (0)
 
@@ -657,11 +717,8 @@ pci_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwl
   const char *collapsestr = hwloc_obj_get_info_by_name(level, "lstopoCollapse");
   unsigned collapse = collapsestr ? atoi(collapsestr) : 1;
   int n;
-   
-
   DYNA_CHECK();
   DYNA_RESTORE();
-
   if (fontsize) {
     char busid[32];
     lstopo_obj_snprintf(_text, sizeof(_text), level, logical);
@@ -687,7 +744,8 @@ pci_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwl
     myheight = textheight;
   }
   if(loutput->drawing<=0)
-  RECURSE_RECT(level, methods, gridsize, gridsize);
+  place_children(loutput,methods, level,depth,gridsize,gridsize,retwidth,retheight,textwidth);
+ 
   lstopo_set_object_color(methods, topology, level, 0, &style);
   if(loutput->drawing !=0){
 	  if (collapse > 1) {
@@ -699,12 +757,12 @@ pci_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwl
 		methods->box(loutput, style.bg.r, style.bg.g, style.bg.b, depth, x, *retwidth, y, *retheight);
 	  }
 
-	  if (fontsize)
+	  if (fontsize) 
 		methods->text(loutput, style.t.r, style.t.g, style.t.b, fontsize, depth-1, x + gridsize, y + gridsize, text);
   }
   if(loutput->drawing==1)
-  RECURSE_RECT(level, methods, gridsize, gridsize);
-
+  draw_children(loutput,methods,level,depth,gridsize,fontsize);
+ 
   DYNA_SAVE();
 }
 
@@ -723,7 +781,7 @@ os_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwlo
   struct style style;
   unsigned nmorelines = 0, i;
   char morelines[3][64];
-  
+
   DYNA_CHECK();
   DYNA_RESTORE(); 
 
@@ -836,7 +894,7 @@ os_device_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwlo
   }
   if(loutput->drawing==1)
   RECURSE_RECT(level, methods, gridsize, gridsize);
-
+  //draw_children(loutput,methods,level,depth);
   DYNA_SAVE();
 
 }
@@ -927,7 +985,7 @@ pu_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj_t
   char text[64];
   int n;
   struct style style;
-  int colorarg;
+  int colorarg=0;
    
   DYNA_CHECK();
   DYNA_RESTORE();
@@ -961,7 +1019,6 @@ pu_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj_t
   }
   if(loutput->drawing==1)
   RECURSE_RECT(level, methods, 0, gridsize);
-
   DYNA_SAVE();
 }
 
@@ -991,7 +1048,6 @@ cache_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_ob
   }
   if(loutput->drawing<=0)
   RECURSE_RECT(level, methods, separator, 0);
-  
   if(loutput->drawing!=0){
 	lstopo_set_object_color(methods, topology, level, 0, &style);
 	methods->box(loutput, style.bg.r, style.bg.g, style.bg.b, depth, x, totwidth, y, myheight - gridsize);
@@ -1002,7 +1058,7 @@ cache_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_ob
   }
   if(loutput->drawing==1)
   RECURSE_RECT(level, methods, separator, 0);
-
+  //draw_children(loutput,methods,level,depth);
   DYNA_SAVE();
 }
 
@@ -1040,7 +1096,7 @@ core_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_obj
   }
   if(loutput->drawing==1)
   RECURSE_RECT(level, methods, 0, gridsize);
-
+  //draw_children(loutput,methods,level,depth);
   DYNA_SAVE();
 }
 
@@ -1077,7 +1133,7 @@ package_draw(struct lstopo_output *loutput, struct draw_methods *methods, hwloc_
   }
   if(loutput->drawing==1)
   RECURSE_RECT(level, methods, gridsize, gridsize);
-
+  //draw_children(loutput,methods,level,depth);
   DYNA_SAVE();
 }
 
